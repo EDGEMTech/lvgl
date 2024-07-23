@@ -40,6 +40,8 @@ extern "C" {
 #include "glfw/lv_glfw_window.h"
 #include "glfw/lv_glfw_mouse.h"
 
+#include "wayland/lv_wayland.h"
+
 /*********************
  *      DEFINES
  *********************/
