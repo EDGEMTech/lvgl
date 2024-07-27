@@ -41,6 +41,7 @@ extern "C" {
 #include "glfw/lv_glfw_mouse.h"
 
 #include "wayland/lv_wayland.h"
+#include "qnx/lv_qnx.h"
 
 /*********************
  *      DEFINES
