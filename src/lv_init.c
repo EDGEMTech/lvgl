@@ -200,6 +200,10 @@ void lv_init(void)
     lv_windows_platform_init();
 #endif
 
+#if LV_USE_WAYLAND
+    lv_wayland_init();
+#endif
+
     _lv_obj_style_init();
 
     /*Initialize the screen refresh system*/
@@ -385,6 +389,10 @@ void lv_deinit(void)
 
 #if LV_USE_DRAW_SW
     lv_draw_sw_deinit();
+#endif
+
+#if LV_USE_WAYLAND
+    lv_wayland_deinit();
 #endif
 
     lv_draw_deinit();
