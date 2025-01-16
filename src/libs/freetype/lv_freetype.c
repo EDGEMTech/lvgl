@@ -415,4 +415,34 @@ static lv_cache_compare_res_t cache_node_cache_compare_cb(const lv_freetype_cach
     return 0;
 }
 
+void lv_freetype_font_set_line_width(lv_font_t * font, uint32_t width)
+{
+    lv_freetype_font_dsc_t * dsc;
+
+    dsc = (lv_freetype_font_dsc_t *) font->dsc;
+    LV_ASSERT_NULL(dsc);
+
+    dsc->line_width = width;
+}
+
+void lv_freetype_font_set_line_color(lv_font_t * font, lv_color_t color)
+{
+    lv_freetype_font_dsc_t * dsc;
+
+    dsc = (lv_freetype_font_dsc_t *) font->dsc;
+    LV_ASSERT_NULL(dsc);
+
+    dsc->line_color = color;
+}
+
+void lv_freetype_font_set_line_opacity(lv_font_t * font, lv_opa_t opa)
+{
+    lv_freetype_font_dsc_t * dsc;
+
+    dsc = (lv_freetype_font_dsc_t *) font->dsc;
+    LV_ASSERT_NULL(dsc);
+
+    dsc->line_opa = opa;
+}
+
 #endif /*LV_USE_FREETYPE*/

@@ -117,6 +117,16 @@ static bool freetype_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_
         g_dsc->adv_w = g_dsc->box_w + g_dsc->ofs_x;
     }
 
+    /* Freetype fonts can have a colored outline, it's the same
+     * case as with Italic glyphs, the bbox needs to be adjusted to avoid clipping */
+    if (dsc->line_width > 0) {
+
+        g_dsc->box_w += dsc->line_width * 2;
+        g_dsc->box_h += dsc->line_width * 2;
+        g_dsc->ofs_x -= dsc->line_width;
+        g_dsc->ofs_y -= dsc->line_width;
+    }
+
     g_dsc->entry = NULL;
 
     lv_cache_release(glyph_cache, entry, NULL);

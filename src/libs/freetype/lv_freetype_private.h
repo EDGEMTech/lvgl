@@ -119,6 +119,9 @@ typedef struct _lv_freetype_font_dsc_t {
     lv_freetype_cache_node_t * cache_node;
     lv_cache_entry_t * cache_node_entry;
     FTC_FaceID face_id;
+    lv_opa_t line_opa;
+    lv_color_t line_color;
+    uint32_t line_width;
 } lv_freetype_font_dsc_t;
 
 /**********************

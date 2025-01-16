@@ -18,6 +18,8 @@ extern "C" {
 
 #include "../../misc/lv_types.h"
 #include "../../misc/lv_event.h"
+#include "../../misc/lv_color.h"
+
 #include LV_STDBOOL_INCLUDE
 
 /*********************
@@ -83,6 +85,26 @@ void lv_freetype_uninit(void);
  */
 lv_font_t * lv_freetype_font_create(const char * pathname, lv_freetype_font_render_mode_t render_mode, uint32_t size,
                                     lv_freetype_font_style_t style);
+
+
+/**
+ * Set the width of the outer line of the letter.
+ * @param font freetype font on which to set the line width.
+ * @param width line width, currently very thick outlines are not supported.
+ */
+void lv_freetype_font_set_line_width(lv_font_t * font, uint32_t width);
+
+/**
+ * Set the color of the outer line of the letter.
+ * @param font freetype font on which to set the line color.
+ */
+void lv_freetype_font_set_line_color(lv_font_t * font, lv_color_t color);
+
+/**
+ * Set the opacity of the outer line of the letter.
+ * @param font freetype font on which to set the line opacity.
+ */
+void lv_freetype_font_set_line_opacity(lv_font_t * font, lv_opa_t opa);
 
 /**
  * Delete a freetype font.
