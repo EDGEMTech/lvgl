@@ -82,6 +82,7 @@ static bool freetype_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_
     LV_ASSERT_NULL(font);
     LV_ASSERT_NULL(g_dsc);
     LV_PROFILER_FONT_BEGIN;
+    float scale;
 
     if(unicode_letter < 0x20) {
         g_dsc->adv_w  = 0;
@@ -117,14 +118,12 @@ static bool freetype_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_
         g_dsc->adv_w = g_dsc->box_w + g_dsc->ofs_x;
     }
 
-    /* Freetype fonts can have a colored outline, it's the same
-     * case as with Italic glyphs, the bbox needs to be adjusted to avoid clipping */
-    if (dsc->line_width > 0) {
+    if(dsc->border_width > 0) {
 
-        g_dsc->box_w += dsc->line_width * 2;
-        g_dsc->box_h += dsc->line_width * 2;
-        g_dsc->ofs_x -= dsc->line_width;
-        g_dsc->ofs_y -= dsc->line_width;
+        scale = dsc->size / (float) dsc->cache_node->ref_size;
+        /* +1 same effect as ceilf */
+        g_dsc->ofs_x -= (dsc->border_width * scale) + 1;
+        g_dsc->ofs_y -= (dsc->border_width * scale) + 1;
     }
 
     g_dsc->entry = NULL;
@@ -141,10 +140,10 @@ static bool freetype_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_
 static bool freetype_glyph_create_cb(lv_freetype_glyph_cache_data_t * data, void * user_data)
 {
     LV_PROFILER_FONT_BEGIN;
-    lv_freetype_font_dsc_t * dsc = (lv_freetype_font_dsc_t *)user_data;
 
     FT_Error error;
-
+    lv_freetype_font_dsc_t * dsc = (lv_freetype_font_dsc_t *)user_data;
+    lv_freetype_context_t * ctx = lv_freetype_get_context();
     lv_font_glyph_dsc_t * dsc_out = &data->glyph_dsc;
 
     lv_mutex_lock(&dsc->cache_node->face_lock);
@@ -179,6 +178,7 @@ static bool freetype_glyph_create_cb(lv_freetype_glyph_cache_data_t * data, void
     FT_GlyphSlot glyph = face->glyph;
 
     if(dsc->render_mode == LV_FREETYPE_FONT_RENDER_MODE_OUTLINE) {
+
         dsc_out->adv_w = FT_F26DOT6_TO_INT(glyph->metrics.horiAdvance);
         dsc_out->box_h = FT_F26DOT6_TO_INT(glyph->metrics.height);          /*Height of the bitmap in [px]*/
         dsc_out->box_w = FT_F26DOT6_TO_INT(glyph->metrics.width);           /*Width of the bitmap in [px]*/
@@ -187,11 +187,24 @@ static bool freetype_glyph_create_cb(lv_freetype_glyph_cache_data_t * data, void
                                            glyph->metrics.height);          /*Y offset of the bitmap measured from the as line*/
         dsc_out->format = LV_FONT_GLYPH_FORMAT_VECTOR;
 
-        /*Transform the glyph to italic if required*/
+        /*Transform the glyph to italic if required */
         if(dsc->style & LV_FREETYPE_FONT_STYLE_ITALIC) {
             dsc_out->box_w = lv_freetype_italic_transform_on_pos((lv_point_t) {
                 dsc_out->box_w, dsc_out->box_h
             });
+        }
+
+        if (dsc->border_width > 0) {
+
+            int delta;
+            float scale;
+
+            scale = dsc->size / (float) dsc->cache_node->ref_size;
+            delta = (dsc->border_width * 2 * scale) + 1;
+            dsc_out->box_w += delta;
+            dsc_out->box_h += delta;
+            dsc_out->adv_w += delta;
+
         }
     }
     else if(dsc->render_mode == LV_FREETYPE_FONT_RENDER_MODE_BITMAP) {

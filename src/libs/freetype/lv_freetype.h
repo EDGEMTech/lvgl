@@ -58,6 +58,7 @@ typedef enum {
     LV_FREETYPE_OUTLINE_LINE_TO,
     LV_FREETYPE_OUTLINE_CUBIC_TO,
     LV_FREETYPE_OUTLINE_CONIC_TO,
+    LV_FREETYPE_OUTLINE_BORDER_START,     /* When line width > 0 the border glyph is drawn after the regular glyph */
 } lv_freetype_outline_type_t;
 
 /**********************
@@ -92,19 +93,19 @@ lv_font_t * lv_freetype_font_create(const char * pathname, lv_freetype_font_rend
  * @param font freetype font on which to set the line width.
  * @param width line width, currently very thick outlines are not supported.
  */
-void lv_freetype_font_set_line_width(lv_font_t * font, uint32_t width);
+void lv_freetype_font_set_border_width(lv_font_t * font, uint32_t width);
 
 /**
  * Set the color of the outer line of the letter.
  * @param font freetype font on which to set the line color.
  */
-void lv_freetype_font_set_line_color(lv_font_t * font, lv_color_t color);
+void lv_freetype_font_set_border_color(lv_font_t * font, lv_color_t color);
 
 /**
  * Set the opacity of the outer line of the letter.
  * @param font freetype font on which to set the line opacity.
  */
-void lv_freetype_font_set_line_opacity(lv_font_t * font, lv_opa_t opa);
+void lv_freetype_font_set_border_opacity(lv_font_t * font, lv_opa_t opa);
 
 /**
  * Delete a freetype font.

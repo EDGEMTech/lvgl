@@ -429,6 +429,7 @@ void lv_draw_sw_vector(lv_draw_unit_t * draw_unit, const lv_draw_vector_task_dsc
     void * buf = draw_buf->data;
     int32_t width = lv_area_get_width(&layer->buf_area) - 1;
     int32_t height = lv_area_get_height(&layer->buf_area) - 1;
+
     uint32_t stride = draw_buf->header.stride;
     Tvg_Canvas * canvas = tvg_swcanvas_create();
 

@@ -194,6 +194,14 @@ static void LV_ATTRIBUTE_FAST_MEM draw_letter_cb(lv_draw_unit_t * draw_unit, lv_
 
 #if LV_USE_FREETYPE && LV_USE_VECTOR_GRAPHIC
 
+typedef struct {
+    lv_vector_path_t *inside_path;      /* The regular glyph */
+    lv_vector_path_t *outside_path;     /* A bigger border glyph that goes in the background */
+    lv_vector_path_t *cur_path;
+} lv_draw_sw_letter_outlines_t;
+
+/* Renders the vectors paths representing a glyph with ThorVG
+ * the result is then blended into the draw buffer */
 static void draw_letter_outline(lv_draw_unit_t * draw_unit, lv_draw_glyph_dsc_t * glyph_dsc)
 {
 
@@ -202,7 +210,7 @@ static void draw_letter_outline(lv_draw_unit_t * draw_unit, lv_draw_glyph_dsc_t 
     uint32_t w, h;
     bool dispatched;
     float scale;
-    lv_vector_path_t *glyph_path;
+    lv_draw_sw_letter_outlines_t *glyph_paths;
     lv_vector_dsc_t *vector_dsc;
     lv_draw_buf_t *draw_buf;
     lv_matrix_t matrix;
@@ -212,8 +220,8 @@ static void draw_letter_outline(lv_draw_unit_t * draw_unit, lv_draw_glyph_dsc_t 
     lv_freetype_font_dsc_t *font_dsc;
     int cf;
 
-    glyph_path = (lv_vector_path_t *)glyph_dsc->glyph_data;
-    LV_ASSERT_NULL(glyph_path);
+    glyph_paths = (lv_draw_sw_letter_outlines_t *)glyph_dsc->glyph_data;
+    LV_ASSERT_NULL(glyph_paths);
 
 #if 0
     /* A8 is more efficient - currently ThorVG has only partial
@@ -258,27 +266,28 @@ static void draw_letter_outline(lv_draw_unit_t * draw_unit, lv_draw_glyph_dsc_t 
 
     /* Invert Y-Axis - Freetype's origin point is in the bottom left corner */
     lv_matrix_scale(&matrix, 1, -1);
-    lv_matrix_translate(&matrix, -glyph_dsc->g->ofs_x, -glyph_dsc->g->box_h + (glyph_dsc->g->ofs_y * -1));
+    lv_matrix_translate(&matrix, -glyph_dsc->g->ofs_x,
+            -glyph_dsc->g->box_h + (glyph_dsc->g->ofs_y * -1));
+
     lv_matrix_scale(&matrix, scale, scale);
 
     lv_vector_dsc_set_transform(vector_dsc, &matrix);
 
     /* Set attributes color, line width etc */
-    if (cf == LV_COLOR_FORMAT_ARGB8888 && font_dsc->line_width > 0) {
+    if (cf == LV_COLOR_FORMAT_ARGB8888) {
 
-        if (font_dsc->line_width > 0) {
-            lv_vector_dsc_set_stroke_color(vector_dsc, font_dsc->line_color);
-            lv_vector_dsc_set_stroke_opa(vector_dsc, font_dsc->line_opa);
-            lv_vector_dsc_set_stroke_width(vector_dsc, font_dsc->line_width);
-            lv_vector_dsc_set_stroke_miter_limit(vector_dsc, font_dsc->line_width / 2);
+        if (font_dsc->border_width > 0) {
+            lv_vector_dsc_set_fill_color(vector_dsc, font_dsc->border_color);
+            lv_vector_dsc_set_fill_opa(vector_dsc, font_dsc->border_opa);
+            lv_vector_dsc_add_path(vector_dsc, glyph_paths->outside_path);
         }
 
         lv_vector_dsc_set_fill_color(vector_dsc, glyph_dsc->color);
         lv_vector_dsc_set_fill_opa(vector_dsc, glyph_dsc->opa);
+        lv_vector_dsc_add_path(vector_dsc, glyph_paths->inside_path);
     }
 
-    /* Render vector path */
-    lv_vector_dsc_add_path(vector_dsc, glyph_path);
+    /* Render vector path(s) */
     lv_draw_vector(vector_dsc);
 
     LV_ASSERT_NULL(layer.draw_task_head);
@@ -296,7 +305,6 @@ static void draw_letter_outline(lv_draw_unit_t * draw_unit, lv_draw_glyph_dsc_t 
         blend_dsc.mask_stride = stride;
         blend_dsc.blend_area = glyph_dsc->letter_coords;
         blend_dsc.mask_res = LV_DRAW_SW_MASK_RES_CHANGED;
-
         lv_draw_sw_blend(draw_unit, &blend_dsc);
 
     } else {
@@ -318,39 +326,63 @@ static void draw_letter_outline(lv_draw_unit_t * draw_unit, lv_draw_glyph_dsc_t 
 
 }
 
+/* Build the inside and outside vector paths for a glyph based
+ * on the recieved outline events emitted by lv_freetype_outline.c */
 static void freetype_outline_event_cb(lv_event_t * e)
 {
 
     lv_fpoint_t pnt;
     lv_fpoint_t ctrl_pnt1;
     lv_fpoint_t ctrl_pnt2;
+    lv_draw_sw_letter_outlines_t *glyph_paths;
     lv_vector_path_t *path;
     float scale;
     lv_freetype_outline_event_param_t * outline_event;
 
     outline_event = lv_event_get_param(e);
-    pnt.x = FT_F26DOT6_TO_INT(outline_event->to.x);
-    pnt.y = FT_F26DOT6_TO_INT(outline_event->to.y);
+    pnt.x = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->to.x);
+    pnt.y = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->to.y);
+    glyph_paths = outline_event->outline;
 
     if (lv_event_get_code(e) == LV_EVENT_CREATE) {
-        outline_event->outline = lv_vector_path_create(LV_VECTOR_PATH_QUALITY_MEDIUM);
+
+        glyph_paths = lv_malloc(sizeof(lv_draw_sw_letter_outlines_t));
+        LV_ASSERT_NULL(glyph_paths);
+
+        glyph_paths->cur_path = lv_vector_path_create(LV_VECTOR_PATH_QUALITY_HIGH);
+        glyph_paths->inside_path = glyph_paths->cur_path;
+        outline_event->outline = glyph_paths;
         return;
 
     } else if (lv_event_get_code(e) == LV_EVENT_DELETE) {
-        lv_vector_path_clear(outline_event->outline);
-        lv_vector_path_delete(outline_event->outline);
+
+        if (glyph_paths->inside_path != NULL) {
+            lv_vector_path_clear(glyph_paths->inside_path);
+            lv_vector_path_delete(glyph_paths->inside_path);
+        }
+
+        if (glyph_paths->outside_path != NULL) {
+            lv_vector_path_clear(glyph_paths->outside_path);
+            lv_vector_path_delete(glyph_paths->outside_path);
+        }
+
+        lv_free(glyph_paths);
+        return;
+
+    } else if (outline_event->type == LV_FREETYPE_OUTLINE_BORDER_START) {
+
+        /* Inside path is done - create the border path */
+        lv_vector_path_close(glyph_paths->cur_path);
+        glyph_paths->cur_path = lv_vector_path_create(LV_VECTOR_PATH_QUALITY_HIGH);
+        glyph_paths->outside_path = glyph_paths->cur_path;
         return;
     }
 
-    path = outline_event->outline;
+    path = glyph_paths->cur_path;
 
     switch (outline_event->type) {
-        case LV_FREETYPE_OUTLINE_END:
-            lv_vector_path_close(path);
-            break;
 
         case LV_FREETYPE_OUTLINE_MOVE_TO:
-
             lv_vector_path_move_to(path, &pnt);
             break;
 
@@ -359,20 +391,19 @@ static void freetype_outline_event_cb(lv_event_t * e)
             break;
 
         case LV_FREETYPE_OUTLINE_CUBIC_TO:
-            ctrl_pnt1.x = FT_F26DOT6_TO_INT(outline_event->control1.x);
-            ctrl_pnt1.y = FT_F26DOT6_TO_INT(outline_event->control1.y);
-            ctrl_pnt2.x = FT_F26DOT6_TO_INT(outline_event->control2.x);
-            ctrl_pnt2.y = FT_F26DOT6_TO_INT(outline_event->control2.y);
+            ctrl_pnt1.x = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->control1.x);
+            ctrl_pnt1.y = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->control1.y);
+            ctrl_pnt2.x = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->control2.x);
+            ctrl_pnt2.y = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->control2.y);
             lv_vector_path_cubic_to(path, &ctrl_pnt1, &ctrl_pnt2, &pnt);
             break;
 
         case LV_FREETYPE_OUTLINE_CONIC_TO:
-            ctrl_pnt1.x = FT_F26DOT6_TO_INT(outline_event->control1.x);
-            ctrl_pnt1.y = FT_F26DOT6_TO_INT(outline_event->control1.y);
+            ctrl_pnt1.x = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->control1.x);
+            ctrl_pnt1.y = LV_FREETYPE_F26DOT6_TO_FLOAT(outline_event->control1.y);
             lv_vector_path_quad_to(path, &ctrl_pnt1, &pnt);
             break;
     }
-
 }
 
 #endif /* LV_USE_FREETYPE && LV_USE_VECTOR_GRAPHIC */
