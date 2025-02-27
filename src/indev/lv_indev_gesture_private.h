@@ -73,6 +73,7 @@ struct lv_indev_gesture_configuration {
 
     float pinch_up_threshold;           /* When the gesture reaches the threshold - start sending events */
     float pinch_down_threshold;         /* When the gesture reaches the threshold - start sending events */
+    float rotation_angle_rad_threshold;
 
 };
 
